@@ -52,7 +52,7 @@ steps:
   inputs:
     SourceFolder: '$(Build.SourcesDirectory)'
     Contents: '**/*.war'
-    TargetFolder: '$(Build.ArtifactStagingDirectory)'''
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
     CleanTargetFolder: true
     preserveTimestamp: true
 - task: PublishBuildArtifacts@1

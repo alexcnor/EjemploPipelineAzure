@@ -28,8 +28,10 @@ pool:
 
 steps:
 - task: Maven@3
+  displayName: 'Maven'
   inputs:
     mavenPomFile: 'pom.xml'
+    codeCoverageToolOption: Cobertura
     mavenOptions: '-Xmx3072m'
     javaHomeOption: 'JDKVersion'
     jdkVersionOption: '1.8'
@@ -37,6 +39,7 @@ steps:
     publishJUnitResults: true
     testResultsFiles: '**/surefire-reports/TEST-*.xml'
     goals: 'package'
+  condition: succeededOrFailed()
 - task: Bash@3
   inputs:
     targetType: 'inline'
@@ -52,3 +55,9 @@ steps:
     TargetFolder: '$(Build.ArtifactStagingDirectory)'''
     CleanTargetFolder: true
     preserveTimestamp: true
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: drop'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'

@@ -56,8 +56,8 @@ steps:
     CleanTargetFolder: true
     preserveTimestamp: true
 - task: PublishBuildArtifacts@1
-  displayName: 'Publish Artifact: drop'
+  displayName: 'Publish Artifact: helloworld.war'
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'drop'
+    ArtifactName: 'helloworld.war'
     publishLocation: 'Container'

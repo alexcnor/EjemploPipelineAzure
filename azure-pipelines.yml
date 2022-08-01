@@ -1,63 +1,77 @@
-# Ejemplo para probar la ejecucion de pipelines desde API
-# Maven 
+# Maven
 # Build your Java project and run tests with Apache Maven.
 # Add steps that analyze code, save build artifacts, deploy, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/java
 
-parameters:
-- name: A_Parameter
-  displayName: A parameter
-  default: noValue
-  type: string
-  
-- name: B_Parameter
-  displayName: B parameter
-  default: noValue
-  type: string
-
-- name: C_Parameter
-  displayName: C parameter
-  default: noValue
-  type: string
-
 trigger:
-- main
+  - main
 
 pool:
   vmImage: ubuntu-latest
 
-steps:
-- task: Maven@3
-  displayName: 'Maven'
-  inputs:
-    mavenPomFile: 'pom.xml'
-    # codeCoverageToolOption: Cobertura
-    mavenOptions: '-Xmx3072m'
-    javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.8'
-    jdkArchitectureOption: 'x64'
-    publishJUnitResults: true
-    testResultsFiles: '**/surefire-reports/TEST-*.xml'
-    goals: 'package'
-  condition: succeededOrFailed()
-- task: Bash@3
-  inputs:
-    targetType: 'inline'
-    script: |
-      echo '1 -  A_Parameter = ' ${{ parameters.A_Parameter }}
-      echo '2 -  B_Parameter = ' ${{ parameters.B_Parameter }}
-      echo '3 -  C_Parameter = ' ${{ parameters.C_Parameter }}
-- task: CopyFiles@2
-  displayName: 'Copy Files to: $(Build.ArtifactStagingDirectory)'
-  inputs:
-    SourceFolder: '$(Build.SourcesDirectory)'
-    Contents: '**/*.war'
-    TargetFolder: '$(Build.ArtifactStagingDirectory)'
-    CleanTargetFolder: true
-    preserveTimestamp: true
-- task: PublishBuildArtifacts@1
-  displayName: 'Publish Artifact: helloworld.war'
-  inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'helloworld.war'
-    publishLocation: 'Container'
+stages:
+  - stage: security
+    displayName: Snyk Security Scan
+    jobs:
+      - job:
+        steps:
+          - task: SnykSecurityScan@1
+            inputs:
+              serviceConnectionEndpoint: 'Snyk'
+              testType: 'app'
+              monitorWhen: 'always'
+              failOnIssues: false
+              projectName: 'T2'
+              organization: '$(SNYK_ORGANIZATION)'
+  - stage: build
+    dependsOn: security
+    displayName: Build Artifact
+    jobs:
+      - job:
+        steps:
+          - task: Maven@3
+            displayName: 'Maven'
+            inputs:
+              mavenPomFile: 'pom.xml'
+              # codeCoverageToolOption: Cobertura
+              mavenOptions: '-Xmx3072m'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '1.8'
+              jdkArchitectureOption: 'x64'
+              publishJUnitResults: true
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+              goals: 'package'
+            condition: succeededOrFailed()
+          - bash: 'cd $(Build.SourcesDirectory)/target && ls -la'
+          - task: CopyFiles@2
+            displayName: 'Copy Files to publish'
+            inputs:
+              SourceFolder: '$(Build.SourcesDirectory)/target'
+              Contents: '**/*.war'
+              TargetFolder: '$(Build.ArtifactStagingDirectory)'
+              CleanTargetFolder: true
+              preserveTimestamp: true
+          - bash: 'cd $(Build.ArtifactStagingDirectory) && ls -la'
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)'
+              artifactName: 'war'
+              artifactType: 'pipeline'
+  - stage:
+    dependsOn: build
+    displayName: Publish Artifact
+    jobs:
+      - job:
+        steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              source: 'current'
+              artifact: 'war'
+              path: '$(Build.ArtifactStagingDirectory)'
+          - bash: 'cd $(Build.ArtifactStagingDirectory) && ls -la'
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Artifact: helloworld.war'
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'helloworld.war'
+              publishLocation: 'Container'
